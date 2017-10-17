@@ -6,11 +6,41 @@
 #include <netinet/in.h>
 #include <string.h>
 
+int clientSocket, portNum, nBytes;
+char data[1024];
+struct sockaddr_in serverAddr;
+socklen_t addr_size;
+
+void sendSegment(char c, int seqNum) {
+
+    char segment[9];
+    memset(segment, 0x0, sizeof segment);
+    segment[0] = 0x1;
+    segment[4] = (seqNum & 0x000000ff);
+    segment[3] = (seqNum & 0x0000ff00) >> 8;
+    segment[2] = (seqNum & 0x00ff0000) >> 16;
+    segment[1] = (seqNum & 0xff000000) >> 24;
+    segment[5] = 0x2;
+    segment[6] = c;
+    segment[7] = 0x3;
+    segment[8] = 0x0;
+
+    /*Send message to server*/
+    sendto(clientSocket,segment, 9, 0, (struct sockaddr *)&serverAddr, addr_size);
+}
+
+int getSeqNum(char byte[7]) {
+    int n = 0;
+
+    n = n + (byte[4] & 0x000000ff);
+    n = n + ((byte[3] & 0x000000ff) << 8);
+    n = n + ((byte[2] & 0x000000ff) << 16);
+    n = n + ((byte[1] & 0x000000ff) << 24);
+
+    return n;
+}
+
 int main(){
-  int clientSocket, portNum, nBytes;
-  char buffer[1024];
-  struct sockaddr_in serverAddr;
-  socklen_t addr_size;
 
   /*Create UDP socket*/
   clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
@@ -24,20 +54,40 @@ int main(){
   /*Initialize size variable to be used later on*/
   addr_size = sizeof serverAddr;
 
+  char recv_data[7];
+
   while(1){
     printf("Type a sentence to send to server:\n");
-    fgets(buffer,1024,stdin);
-    printf("You typed: %s",buffer);
+    fgets(data,1024,stdin);
+    printf("You typed: %s",data);
 
-    nBytes = strlen(buffer) + 1;
+    // nBytes = strlen(data) + 1;
+    int seqNum = 0;
+    int LAR = 0; //last ACK received
+    int WINDOW_SIZE = 4;
+    while (seqNum < strlen(data)) {
+        int i = LAR;
+        for (i; i < LAR + WINDOW_SIZE; i++) {
+            sendSegment(data[i], i);
+            printf("%c", data[i]);
+        }
 
-    /*Send message to server*/
-    sendto(clientSocket,buffer,nBytes,0,(struct sockaddr *)&serverAddr,addr_size);
+        memset(recv_data, 0x0, sizeof recv_data);
+        /*Receive message from server*/
+        nBytes = recvfrom(clientSocket,recv_data, 7, 0, NULL, NULL);
+        // printf("%d", nBytes);
+        for (int i = 0; i < 7; i++)
+            printf("%02x ", recv_data[i]);
+        printf("\n");
 
-    /*Receive message from server*/
-                nBytes = recvfrom(clientSocket,buffer,1024,0,NULL, NULL);
+        seqNum = getSeqNum(recv_data);
+        LAR = seqNum;
 
-    printf("Received from server: %s\n",buffer);
+        // printf("Received from server: %s\n",recv_data);
+
+
+    }
+
 
   }
 
