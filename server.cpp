@@ -6,6 +6,10 @@
 #include <cstring>
 #include <string>
 #include <stdlib.h>
+#include <fstream>
+#include <iostream>
+
+using namespace std;
 
 
 int udpSocket, nBytes;
@@ -56,17 +60,21 @@ int getSeqNum(char byte[7]) {
 
 int main(int argc, char* argv[]){
     int i, nextSeqNum = 0; //nextSeqNum = Largest Acceptable Frame
-    int WINDOW_SIZE = 4;
+    int WINDOW_SIZE = atoi(argv[2]);
     char arr[WINDOW_SIZE];
+    int port = atoi(argv[4]);
     memset(arr, 0x0, sizeof arr);
+
+    ofstream File(argv[1], std::ios::out);
+    
 
     /*Create UDP socket*/
     udpSocket = socket(PF_INET, SOCK_DGRAM, 0);
 
     /*Configure settings in address struct*/
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(7891);
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serverAddr.sin_port = htons(port);
+    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY); //inet_addr("127.0.0.1"); // destination IP
     memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
 
     /*Bind socket with address struct*/
@@ -75,9 +83,8 @@ int main(int argc, char* argv[]){
     /*Initialize size variable to be used later on*/
     addr_size = sizeof serverStorage;
 
-    // printf("c");
-
     while(1){
+
         /* Try to receive any incoming UDP datagram. Address and port of
           requesting client will be stored on serverStorage variable */
         nBytes = recvfrom(udpSocket, data, 9,0,(struct sockaddr *)&serverStorage, &addr_size);
@@ -85,6 +92,7 @@ int main(int argc, char* argv[]){
         // for (int x = 0; x < 9; x++)
         //     printf("%02x ", data[x]);
         // printf("\n");
+
 
         if (nextSeqNum < getSeqNum(data) + 1) { //Jika segment yang diterima lebih dari Largest Acceptable Frame
             if (compute_checksum(data) == data[8]) { // cek error dengan checksum
@@ -97,8 +105,10 @@ int main(int argc, char* argv[]){
                 }
                 for (int j = 0; j < i ;j++) {
                     printf("%c", arr[j]);
-                }
+                    File << arr[j];
 
+                }
+                File.flush();
                 fflush(stdout);
 
                 //copy karakter yang belum terbaca pada sisa WINDOW
@@ -116,6 +126,8 @@ int main(int argc, char* argv[]){
             }
         }
     }
+
+    File.close();
 
     return 0;
 }

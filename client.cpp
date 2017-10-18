@@ -5,11 +5,17 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <stdlib.h>
+#include <fstream>
+#include <iostream>
+
+using namespace std;
 
 int clientSocket, portNum, nBytes;
 char data[1024];
 struct sockaddr_in serverAddr;
 socklen_t addr_size;
+int WINDOW_SIZE = 4;
 
 char compute_checksum(char* str) {
     char sum = 0x0;
@@ -53,15 +59,36 @@ int getSeqNum(char byte[7]) {
     return n;
 }
 
+void readFile(char* FileName) {
+
+    string STRING;
+    ifstream infile;
+    infile.open (FileName);
+    while(!infile.eof()) // To get you all the lines.
+    {
+        getline(infile,STRING); // Saves the line in STRING.
+        // cout << STRING; // Prints our STRING.
+        strcat(data, STRING.c_str());
+        if (!infile.eof())
+            strcat(data, "\n");
+    }
+    infile.close();
+}
+
 int main(int argc, char* argv[]){
 
     /*Create UDP socket*/
     clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
 
+    int port = atoi(argv[5]);
+    int LAR = 0; //last ACK received
+
+    WINDOW_SIZE = atoi(argv[2]);
+
     /*Configure settings in address struct*/
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(7891);
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serverAddr.sin_port = htons(port);
+    serverAddr.sin_addr.s_addr = inet_addr(argv[4]);
     memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
 
     /*Initialize size variable to be used later on*/
@@ -69,15 +96,14 @@ int main(int argc, char* argv[]){
 
     char recv_data[7];
 
-    while(1){
-        printf("Type a sentence to send to server:\n");
-        fgets(data,1024,stdin);
-        printf("You typed: %s",data);
+    readFile(argv[1]);
+    printf("You typed: \n%s",data);
+
+    while (LAR < strlen(data)){
 
         // nBytes = strlen(data) + 1;
         int seqNum = 0;
-        int LAR = 0; //last ACK received
-        int WINDOW_SIZE = 4;
+
         while (seqNum < strlen(data)) {
             int i = LAR;
             for (i; i < LAR + WINDOW_SIZE; i++) {
@@ -96,12 +122,15 @@ int main(int argc, char* argv[]){
             printf("%02x ", compute_checksum(recv_data));
             fflush(stdout);
 
+            printf("LAR: %d\n", LAR );
+            printf("Data: %d\n", (int) strlen(data));
             printf("\n");
 
             if (compute_checksum(recv_data) == recv_data[6]) { //cek checksum
                 seqNum = getSeqNum(recv_data);
                 LAR = seqNum;
             }
+
         }
     }
 
