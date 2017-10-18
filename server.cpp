@@ -17,19 +17,50 @@ char data[9];
 struct sockaddr_in serverAddr, clientAddr;
 struct sockaddr_storage serverStorage;
 socklen_t addr_size, client_addr_size;
+//
+// char compute_checksum(char* str) {
+//     char sum = 0x0;
+//
+//     int length = sizeof (str) / sizeof (char);
+//     length--;
+//     length--;
+//     for (int i = 0; i < length; i++) {
+//         sum += str[i];
+//     }
+//
+//     return sum;
+// }
 
-char compute_checksum(char* str) {
-    char sum = 0x0;
 
-    int length = sizeof (str) / sizeof (char);
-    length--;
-    length--;
-    for (int i = 0; i < length; i++) {
-        sum += str[i];
+uint8_t compute_checksum_7(char str[7]) {
+    uint16_t sum = 0x0;
+
+    for (int i = 0; i < 6; i++) {
+        sum += (uint8_t) str[i];
+        // printf("%02x\n", (uint8_t) str[i]);
     }
 
+    uint8_t n = sum >> 8;
+
+    sum = (uint8_t)  (sum + n);
     return sum;
 }
+
+
+uint8_t compute_checksum_9(char str[9]) {
+    uint16_t sum = 0x0;
+
+    for (int i = 0; i < 8; i++) {
+        sum += (uint8_t) str[i];
+        // printf("%02x\n", (uint8_t) str[i]);
+    }
+
+    uint8_t n = sum >> 8;
+
+    sum = (uint8_t)  (sum + n);
+    return sum;
+}
+
 
 void sendACK(int nextSeqNum) {
     char segment[7];
@@ -40,7 +71,12 @@ void sendACK(int nextSeqNum) {
     segment[2] = (nextSeqNum & 0x00ff0000) >> 16;
     segment[1] = (nextSeqNum & 0xff000000) >> 24;
     segment[5] = 0x0;
-    segment[6] = compute_checksum(segment);
+    segment[6] = compute_checksum_7(segment);
+
+    printf("\n Send: ");
+    for (int i = 0; i < 7; i++)
+        printf("%02x ", segment[i]);
+    printf("\n");
 
     /*Send uppercase message back to client, using serverStorage as the address*/
     sendto(udpSocket, segment, 7, 0, (struct sockaddr *)&serverStorage, addr_size);
@@ -66,7 +102,7 @@ int main(int argc, char* argv[]){
     memset(arr, 0x0, sizeof arr);
 
     ofstream File(argv[1], std::ios::out);
-    
+
 
     /*Create UDP socket*/
     udpSocket = socket(PF_INET, SOCK_DGRAM, 0);
@@ -89,13 +125,15 @@ int main(int argc, char* argv[]){
           requesting client will be stored on serverStorage variable */
         nBytes = recvfrom(udpSocket, data, 9,0,(struct sockaddr *)&serverStorage, &addr_size);
 
-        // for (int x = 0; x < 9; x++)
-        //     printf("%02x ", data[x]);
-        // printf("\n");
+
+        printf("\nReceive: ");
+        for (int x = 0; x < 9; x++)
+            printf("%02x ", data[x]);
+        printf("\n");
 
 
         if (nextSeqNum < getSeqNum(data) + 1) { //Jika segment yang diterima lebih dari Largest Acceptable Frame
-            if (compute_checksum(data) == data[8]) { // cek error dengan checksum
+            if (compute_checksum_9(data) == data[8]) { // cek error dengan checksum
 
                 //memasukkan karakter yang terbaca ke array dengan size WINDOW_SIZE
                 arr[getSeqNum(data) - nextSeqNum] = data[6];
@@ -104,12 +142,12 @@ int main(int argc, char* argv[]){
                 for (i = 0; i < WINDOW_SIZE && arr[i] != 0x0; i++) {
                 }
                 for (int j = 0; j < i ;j++) {
-                    printf("%c", arr[j]);
+                    // printf("%c", arr[j]);
                     File << arr[j];
 
                 }
                 File.flush();
-                fflush(stdout);
+
 
                 //copy karakter yang belum terbaca pada sisa WINDOW
                 char temp[WINDOW_SIZE];
@@ -125,6 +163,7 @@ int main(int argc, char* argv[]){
                 sendACK(nextSeqNum);
             }
         }
+        fflush(stdout);
     }
 
     File.close();
