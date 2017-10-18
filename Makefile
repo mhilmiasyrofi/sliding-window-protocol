@@ -1,7 +1,6 @@
-all: client server
-
-client: client.o
+all: client.o server.o
 	g++ client.cpp -o sendfile
-
-server: server.o
 	g++ server.cpp -o recvfile
+
+clean:
+	\rm *.o sendfile recvfile
