@@ -29,8 +29,11 @@ Tugas dibagi sesuai kemampuan, usahan, dan do'a
 **2.** (besar ukuran header dalam bit)
 
 +----+----+--------+--------+----+------+-------+------+--------+----+-----+
+
 | SP | DP | Seqnum | ACKnum | DO | Resv | Flags | Wndw | Chksum | UP | Opt |
+
 | 16 | 16 |   32   |   32   | 4  |   6  |   6   |  16  |   16   | 16 | 32  |
+
 +----+----+--------+--------+----+------+-------+------+--------+----+-----+
 
 * **Source Port (SP)** : merupakan identitas pengirim paket untuk aplikasi tertentu
