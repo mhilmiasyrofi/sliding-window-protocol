@@ -1,6 +1,7 @@
-all: client.o server.o
-	g++ client.cpp -o sendfile
-	g++ server.cpp -o recvfile
+all: src/client.o src/server.o
+	g++ src/client.cpp -o sendfile
+	g++ src/server.cpp -o recvfile
 
 clean:
-	\rm *.o sendfile recvfile
+	\rm sendfile recvfile
+	\rm src/*.o

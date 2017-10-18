@@ -136,10 +136,11 @@ int main(int argc, char* argv[]){
     readFile(argv[1]);
     // printf("You typed: \n%s",data);
 
+    int seqNum = 0;
+
     while (LAR < strlen(data)){
 
         // nBytes = strlen(data) + 1;
-        int seqNum = 0;
 
         while (seqNum < strlen(data)) {
             int i = LAR;
@@ -151,7 +152,6 @@ int main(int argc, char* argv[]){
             memset(recv_data, 0x0, 7 * sizeof (uint8_t));
             /*Receive message from server*/
             nBytes = recvfrom(clientSocket,recv_data, 7, 0, NULL, NULL);
-
 
             printf("\n Receive: ");
             for (int i = 0; i < 7; i++)
@@ -167,9 +167,13 @@ int main(int argc, char* argv[]){
 
             if (compute_checksum_7(recv_data) == recv_data[6]) { //cek checksum
                 seqNum = getSeqNum(recv_data);
-                if (seqNum > LAR)
+                if (seqNum == LAR + 1)
                     LAR = seqNum;
+                else
+                    sendSegment(data[LAR],LAR);
             }
+
+
 
         }
         fflush(stdout);

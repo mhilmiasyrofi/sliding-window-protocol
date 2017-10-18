@@ -102,6 +102,8 @@ int main(int argc, char* argv[]){
     int port = atoi(argv[4]);
     memset(arr, 0x0, WINDOW_SIZE * sizeof (uint8_t));
 
+    bool isFailed = false;
+
     ofstream File(argv[1], std::ios::out);
 
 
@@ -133,7 +135,11 @@ int main(int argc, char* argv[]){
 
 
         if (nextSeqNum < getSeqNum(data) + 1) { //Jika segment yang diterima lebih dari Largest Acceptable Frame
-            if (compute_checksum_9(data) == data[8]) { // cek error dengan checksum
+
+            if (nextSeqNum == getSeqNum(data))
+                isFailed = false;
+
+            if (compute_checksum_9(data) == data[8] && !isFailed){ // cek error dengan checksum
 
                 //memasukkan karakter yang terbaca ke array dengan size WINDOW_SIZE
                 arr[getSeqNum(data) - nextSeqNum] = data[6];
@@ -150,10 +156,11 @@ int main(int argc, char* argv[]){
                 uint8_t temp[WINDOW_SIZE];
                 // strcpy(temp, arr);
                 for (int j = 0; j < WINDOW_SIZE; j++) {
+                    temp[j] = arr[j];
                 }
                 memset(arr, 0x0, WINDOW_SIZE * sizeof (uint8_t));
                 for (int j = i ; j < WINDOW_SIZE; j++) {
-                    arr[j-i] = arr[j];
+                    arr[j-i] = temp[j];
                 }
 
                 // File << nextSeqNum << " " << i << endl;
@@ -162,6 +169,9 @@ int main(int argc, char* argv[]){
 
                 sendACK(nextSeqNum);
 
+            } else {
+                sendACK(nextSeqNum);
+                isFailed = true;
             }
         }
         fflush(stdout);
