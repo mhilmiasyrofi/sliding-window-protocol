@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 
+
 using namespace std;
 
 int clientSocket, portNum, nBytes;
@@ -31,7 +32,7 @@ int WINDOW_SIZE = 4;
 // }
 
 
-uint8_t compute_checksum_7(char str[7]) {
+uint8_t compute_checksum_7(uint8_t str[7]) {
     uint16_t sum = 0x0;
 
     for (int i = 0; i < 6; i++) {
@@ -41,12 +42,12 @@ uint8_t compute_checksum_7(char str[7]) {
 
     uint8_t n = sum >> 8;
 
-    sum = (uint8_t)  (sum + n);
-    return sum;
+    sum = (sum + n);
+    return (uint8_t) sum;
 }
 
 
-uint8_t compute_checksum_9(char str[9]) {
+uint8_t compute_checksum_9(uint8_t str[9]) {
     uint16_t sum = 0x0;
 
     for (int i = 0; i < 8; i++) {
@@ -56,13 +57,13 @@ uint8_t compute_checksum_9(char str[9]) {
 
     uint8_t n = sum >> 8;
 
-    sum = (uint8_t)  (sum + n);
-    return sum;
+    sum = (sum + n);
+    return (uint8_t) sum;
 }
 
 void sendSegment(char c, int seqNum) {
 
-    char segment[9];
+    uint8_t segment[9];
     memset(segment, 0x0, sizeof segment);
     segment[0] = 0x1;
     segment[4] = (seqNum & 0x000000ff);
@@ -70,21 +71,21 @@ void sendSegment(char c, int seqNum) {
     segment[2] = (seqNum & 0x00ff0000) >> 16;
     segment[1] = (seqNum & 0xff000000) >> 24;
     segment[5] = 0x2;
-    segment[6] = (uint) c;
+    segment[6] = (uint8_t) c;
     segment[7] = 0x3;
     segment[8] = compute_checksum_9(segment);
 
-    printf("\n Send: ");
-    for (int i = 0; i < 9; i++) {
-        printf("%02x ",segment[i]);
-    }
-    printf("\n");
+    // printf("\n Send: ");
+    // for (int i = 0; i < 9; i++) {
+    //     printf("%02x ",segment[i]);
+    // }
+    // printf("\n");
 
     /*Send message to server*/
     sendto(clientSocket,segment, 9, 0, (struct sockaddr *)&serverAddr, addr_size);
 }
 
-int getSeqNum(char byte[7]) {
+int getSeqNum(uint8_t byte[7]) {
     int n = 0;
 
     n = n + (byte[4] & 0x000000ff);
@@ -130,7 +131,7 @@ int main(int argc, char* argv[]){
     /*Initialize size variable to be used later on*/
     addr_size = sizeof serverAddr;
 
-    char recv_data[7];
+    uint8_t  recv_data[7];
 
     readFile(argv[1]);
     // printf("You typed: \n%s",data);
@@ -147,7 +148,7 @@ int main(int argc, char* argv[]){
                 // printf("%02x", data[i]);
             }
 
-            memset(recv_data, 0x0, sizeof recv_data);
+            memset(recv_data, 0x0, 7 * sizeof (uint8_t));
             /*Receive message from server*/
             nBytes = recvfrom(clientSocket,recv_data, 7, 0, NULL, NULL);
 
@@ -166,7 +167,8 @@ int main(int argc, char* argv[]){
 
             if (compute_checksum_7(recv_data) == recv_data[6]) { //cek checksum
                 seqNum = getSeqNum(recv_data);
-                LAR = seqNum;
+                if (seqNum > LAR)
+                    LAR = seqNum;
             }
 
         }

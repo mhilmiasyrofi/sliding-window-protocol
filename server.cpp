@@ -9,11 +9,12 @@
 #include <fstream>
 #include <iostream>
 
+
 using namespace std;
 
 
 int udpSocket, nBytes;
-char data[9];
+uint8_t data[9];
 struct sockaddr_in serverAddr, clientAddr;
 struct sockaddr_storage serverStorage;
 socklen_t addr_size, client_addr_size;
@@ -32,7 +33,7 @@ socklen_t addr_size, client_addr_size;
 // }
 
 
-uint8_t compute_checksum_7(char str[7]) {
+uint8_t compute_checksum_7(uint8_t str[7]) {
     uint16_t sum = 0x0;
 
     for (int i = 0; i < 6; i++) {
@@ -43,11 +44,11 @@ uint8_t compute_checksum_7(char str[7]) {
     uint8_t n = sum >> 8;
 
     sum = (uint8_t)  (sum + n);
-    return sum;
+    return (uint8_t) sum;
 }
 
 
-uint8_t compute_checksum_9(char str[9]) {
+uint8_t compute_checksum_9(uint8_t str[9]) {
     uint16_t sum = 0x0;
 
     for (int i = 0; i < 8; i++) {
@@ -57,14 +58,14 @@ uint8_t compute_checksum_9(char str[9]) {
 
     uint8_t n = sum >> 8;
 
-    sum = (uint8_t)  (sum + n);
-    return sum;
+    sum =  (sum + n);
+    return (uint8_t) sum;
 }
 
 
 void sendACK(int nextSeqNum) {
-    char segment[7];
-    memset(segment,0x0, sizeof segment);
+    uint8_t segment[7];
+    memset(segment,0x0, 7 * sizeof (uint8_t));
     segment[0] = 0x6;
     segment[4] = (nextSeqNum & 0x000000ff);
     segment[3] = (nextSeqNum & 0x0000ff00) >> 8;
@@ -73,17 +74,17 @@ void sendACK(int nextSeqNum) {
     segment[5] = 0x0;
     segment[6] = compute_checksum_7(segment);
 
-    printf("\n Send: ");
-    for (int i = 0; i < 7; i++)
-        printf("%02x ", segment[i]);
-    printf("\n");
+    // printf("\n Send: ");
+    // for (int i = 0; i < 7; i++)
+    //     printf("%02x ", segment[i]);
+    // printf("\n");
 
     /*Send uppercase message back to client, using serverStorage as the address*/
     sendto(udpSocket, segment, 7, 0, (struct sockaddr *)&serverStorage, addr_size);
 }
 
 
-int getSeqNum(char byte[7]) {
+int getSeqNum(uint8_t byte[7]) {
     int n = 0;
 
     n = n + (byte[4] & 0x000000ff);
@@ -97,9 +98,9 @@ int getSeqNum(char byte[7]) {
 int main(int argc, char* argv[]){
     int i, nextSeqNum = 0; //nextSeqNum = Largest Acceptable Frame
     int WINDOW_SIZE = atoi(argv[2]);
-    char arr[WINDOW_SIZE];
+    uint8_t arr[WINDOW_SIZE];
     int port = atoi(argv[4]);
-    memset(arr, 0x0, sizeof arr);
+    memset(arr, 0x0, WINDOW_SIZE * sizeof (uint8_t));
 
     ofstream File(argv[1], std::ios::out);
 
@@ -125,7 +126,6 @@ int main(int argc, char* argv[]){
           requesting client will be stored on serverStorage variable */
         nBytes = recvfrom(udpSocket, data, 9,0,(struct sockaddr *)&serverStorage, &addr_size);
 
-
         printf("\nReceive: ");
         for (int x = 0; x < 9; x++)
             printf("%02x ", data[x]);
@@ -144,26 +144,28 @@ int main(int argc, char* argv[]){
                 for (int j = 0; j < i ;j++) {
                     // printf("%c", arr[j]);
                     File << arr[j];
-
                 }
-                File.flush();
-
 
                 //copy karakter yang belum terbaca pada sisa WINDOW
-                char temp[WINDOW_SIZE];
-                strcpy(temp, arr);
-                memset(arr, 0x0, sizeof arr);
+                uint8_t temp[WINDOW_SIZE];
+                // strcpy(temp, arr);
+                for (int j = 0; j < WINDOW_SIZE; j++) {
+                }
+                memset(arr, 0x0, WINDOW_SIZE * sizeof (uint8_t));
                 for (int j = i ; j < WINDOW_SIZE; j++) {
                     arr[j-i] = arr[j];
                 }
 
+                // File << nextSeqNum << " " << i << endl;
                 // update LAF
                 nextSeqNum += i;
 
                 sendACK(nextSeqNum);
+
             }
         }
         fflush(stdout);
+        File.flush();
     }
 
     File.close();
